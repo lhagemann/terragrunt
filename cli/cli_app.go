@@ -669,6 +669,7 @@ func validateAll(terragruntOptions *options.TerragruntOptions) error {
 
 // test terraform output to see if we should force a call to init
 func isRetryableInitError(tfoutput string, tferr error) bool {
+	fmt.Println("*** is a isRetryableInitError")
 	return tferr != nil && strings.Contains(tfoutput,"may need to run 'terraform init'")
 }
 

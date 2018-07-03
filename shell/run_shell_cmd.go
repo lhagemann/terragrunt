@@ -1,8 +1,10 @@
 package shell
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -34,8 +36,6 @@ func RunShellCommand(terragruntOptions *options.TerragruntOptions, command strin
 
 	// TODO: consider adding prefix from terragruntOptions logger to stdout and stderr
 	cmd.Stdin = os.Stdin
-	cmd.Stdout = terragruntOptions.Writer
-	cmd.Stderr = terragruntOptions.ErrWriter
 	cmd.Env = toEnvVarsList(terragruntOptions.Env)
 
 	// Terragrunt can run some commands (such as terraform remote config) before running the actual terraform
@@ -47,6 +47,17 @@ func RunShellCommand(terragruntOptions *options.TerragruntOptions, command strin
 
 	cmd.Dir = terragruntOptions.WorkingDir
 
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return errors.WithStackTrace(err)
+	}
+
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return errors.WithStackTrace(err)
+	}
+
+
 	if err := cmd.Start(); err != nil {
 		// bad path, binary not executable, &c
 		return errors.WithStackTrace(err)
@@ -55,7 +66,14 @@ func RunShellCommand(terragruntOptions *options.TerragruntOptions, command strin
 	signalChannel := NewSignalsForwarder(forwardSignals, cmd, terragruntOptions.Logger, cmdChannel)
 	defer signalChannel.Close()
 
-	err := cmd.Wait()
+
+	_, err = readStdoutAndStderr(terragruntOptions, stdout, stderr)
+	if err != nil {
+		return errors.WithStackTrace(err)
+	}
+
+
+	err = cmd.Wait()
 	cmdChannel <- err
 
 	return errors.WithStackTrace(err)
@@ -73,11 +91,16 @@ func toEnvVarsList(envVarsAsMap map[string]string) []string {
 // string.
 func RunShellCommandAndCaptureOutput(terragruntOptions *options.TerragruntOptions, command string, args ...string) (string, error) {
 	stdout := new(bytes.Buffer)
+	terragruntOptions.Logger.Printf("Running command: %s %s", command, strings.Join(args, " "))
 
+	
 	terragruntOptionsCopy := terragruntOptions.Clone(terragruntOptions.TerragruntConfigPath)
 	terragruntOptionsCopy.Writer = stdout
 	terragruntOptionsCopy.ErrWriter = stdout
 	terragruntOptionsCopy.WorkingDir = terragruntOptions.WorkingDir
+
+
+
 
 	err := RunShellCommand(terragruntOptionsCopy, command, args...)
 	return stdout.String(), err
@@ -106,6 +129,39 @@ func GetExitCode(err error) (int, error) {
 
 	return 0, err
 }
+
+// This function captures stdout and stderr while still printing it to the stdout and stderr of this Go program
+func readStdoutAndStderr(terragruntOptions *options.TerragruntOptions, stdout io.ReadCloser, stderr io.ReadCloser) (string, error) {
+	allOutput := []string{}
+
+	stdoutScanner := bufio.NewScanner(stdout)
+	stderrScanner := bufio.NewScanner(stderr)
+
+	for {
+		if stdoutScanner.Scan() {
+			text := stdoutScanner.Text()
+			terragruntOptions.Logger.Println(text)
+			allOutput = append(allOutput, text)
+		} else if stderrScanner.Scan() {
+			text := stderrScanner.Text()
+			terragruntOptions.Logger.Println(text)
+			allOutput = append(allOutput, text)
+		} else {
+			break
+		}
+	}
+
+	if err := stdoutScanner.Err(); err != nil {
+		return "", err
+	}
+
+	if err := stderrScanner.Err(); err != nil {
+		return "", err
+	}
+
+	return strings.Join(allOutput, "\n"), nil
+}
+
 
 type SignalsForwarder chan os.Signal
 

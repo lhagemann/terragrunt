@@ -789,7 +789,7 @@ func TestInitRetry(t *testing.T) {
 	err := runTerragruntCommand(t, fmt.Sprintf("terragrunt apply --auto-approve --terragrunt-non-interactive --terragrunt-working-dir %s", modulePath), out, os.Stderr)
 
 	assert.Nil(t, err)
-	// t.Log(out)
+	t.Log(out)
 	assert.Contains(t, out.String(), "may need to run terraform init")
 }
 
