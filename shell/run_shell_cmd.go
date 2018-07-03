@@ -78,6 +78,7 @@ func RunShellCommand(terragruntOptions *options.TerragruntOptions, command strin
 	err = cmd.Wait()
 	cmdChannel <- err
 
+	fmt.Println("***** end of function, returning errors ", err)
 	return errors.WithStackTrace(err)
 }
 
@@ -104,6 +105,7 @@ func RunShellCommandAndCaptureOutput(terragruntOptions *options.TerragruntOption
 
 
 	err := RunShellCommand(terragruntOptionsCopy, command, args...)
+	fmt.Println("*** what RunShellCommand returned: ", err)
 	return stdout.String(), err
 }
 
