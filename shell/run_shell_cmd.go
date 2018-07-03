@@ -30,11 +30,10 @@ func RunTerraformCommandAndCaptureOutput(terragruntOptions *options.TerragruntOp
 // Run the specified shell command with the specified arguments. Connect the command's stdin, stdout, and stderr to
 // the currently running app.
 func RunShellCommand(terragruntOptions *options.TerragruntOptions, command string, args ...string) error {
-	terragruntOptions.Logger.Printf("Running command: %s %s", command, strings.Join(args, " "))
+	terragruntOptions.Logger.Printf("Running Shell command: %s %s", command, strings.Join(args, " "))
 
 	cmd := exec.Command(command, args...)
 
-	// TODO: consider adding prefix from terragruntOptions logger to stdout and stderr
 	cmd.Stdin = os.Stdin
 	cmd.Env = toEnvVarsList(terragruntOptions.Env)
 
@@ -49,11 +48,13 @@ func RunShellCommand(terragruntOptions *options.TerragruntOptions, command strin
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
+		fmt.Println("**** got an error from opening StdoutPipe")
 		return errors.WithStackTrace(err)
 	}
 
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
+		fmt.Println("**** got an error from opening StderrPipe")
 		return errors.WithStackTrace(err)
 	}
 
@@ -69,6 +70,7 @@ func RunShellCommand(terragruntOptions *options.TerragruntOptions, command strin
 
 	_, err = readStdoutAndStderr(terragruntOptions, stdout, stderr)
 	if err != nil {
+		fmt.Println("****** got an error from readStdoutAndStderr")
 		return errors.WithStackTrace(err)
 	}
 
@@ -91,7 +93,7 @@ func toEnvVarsList(envVarsAsMap map[string]string) []string {
 // string.
 func RunShellCommandAndCaptureOutput(terragruntOptions *options.TerragruntOptions, command string, args ...string) (string, error) {
 	stdout := new(bytes.Buffer)
-	terragruntOptions.Logger.Printf("Running command: %s %s", command, strings.Join(args, " "))
+	terragruntOptions.Logger.Printf("Running command: %s %s\n", command, strings.Join(args, " "))
 
 	
 	terragruntOptionsCopy := terragruntOptions.Clone(terragruntOptions.TerragruntConfigPath)
@@ -101,7 +103,7 @@ func RunShellCommandAndCaptureOutput(terragruntOptions *options.TerragruntOption
 
 
 
-
+	fmt.Printf("*** Handing command: %s %s to RunShellCommand", command, strings.Join(args, " "))
 	err := RunShellCommand(terragruntOptionsCopy, command, args...)
 	return stdout.String(), err
 }
