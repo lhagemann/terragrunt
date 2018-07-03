@@ -103,7 +103,6 @@ func RunShellCommandAndCaptureOutput(terragruntOptions *options.TerragruntOption
 
 
 
-	fmt.Printf("*** Handing command: %s %s to RunShellCommand", command, strings.Join(args, " "))
 	err := RunShellCommand(terragruntOptionsCopy, command, args...)
 	return stdout.String(), err
 }
